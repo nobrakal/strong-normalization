@@ -142,6 +142,7 @@ Qed.
 (* Todo: realy necessary ? *)
 Require Import Coq.Logic.FunctionalExtensionality.
 
+(* Prop 3 *)
 Lemma plus_0_neutral (t:type) : forall v, plus t v 0 = v.
 Proof.
   intros.
@@ -166,7 +167,6 @@ Proof.
     easy.
 Qed.
 
-
 Lemma compare_plus_H (t:type) : forall v k1 k2, k1 < k2 -> interp_compare t (plus t v k1) (plus t v k2).
 Proof.
   intros.
@@ -175,3 +175,15 @@ Proof.
   - simpl; intros.
     exact (IHt2 (v x)).
 Qed.
+
+Fixpoint star_below t: interpt t :=
+  match t as t return interpt t with
+  | Iota => 0
+  | Arrow t1 t2 =>
+    fun v => plus t2 (star_below t2) (collapse t1 v) end
+with collapse t: interpt t -> nat :=
+  match t as t return interpt t -> nat with
+  | Iota => fun n => n
+  | Arrow t1 t2 =>
+    fun f =>
+      collapse t2 (f (star_below t1)) end.
