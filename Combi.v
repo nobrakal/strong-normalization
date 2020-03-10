@@ -69,6 +69,22 @@ Proof. auto. Qed.
 
 Definition InInterp t := In (interpt t) (interp_ens t).
 
+Lemma in_interp_arrow t1 t2 v : InInterp (Arrow t1 t2) v ->forall x, InInterp t1 x -> InInterp t2 (v x).
+Proof.
+  intros.
+  unfold InInterp.
+  unfold In.
+  unfold InInterp in H.
+  unfold In in H.
+  simpl in H.
+  destruct H as (H,_).
+  unfold Restrict in H.
+  fold interpt in H.
+  specialize H with x.
+  exact (H H0).
+Qed.
+
+
 Require Import Lia.
 
 Lemma prop_2 (t:type) :
@@ -112,14 +128,8 @@ Proof.
         exact (H2 H31 H32 FH).
     + intros; simpl; intros.
       specialize H2 with (v1 x) (v2 x) k.
-      unfold InInterp in H3; unfold In in H3; simpl in H3.
-      unfold InInterp in H4; unfold In in H4; simpl in H4.
-      destruct H3 as (H3,_).
-      destruct H4 as (H4,_).
-      unfold Restrict in H3; fold interpt in H3.
-      unfold Restrict in H4; fold interpt in H4.
-      pose (H3x := H3 x H6).
-      pose (H4x := H4 x H6).
+      pose (H3x := in_interp_arrow H3 x H6).
+      pose (H4x := in_interp_arrow  H4 x H6).
       simpl in H5.
       specialize H5 with x.
       pose (H66 := H5 H6).
@@ -187,3 +197,53 @@ with collapse t: interpt t -> nat :=
   | Arrow t1 t2 =>
     fun f =>
       collapse t2 (f (star_below t1)) end.
+
+Lemma prop_4 t:
+  (InInterp t (star_below t))
+  /\ (forall v v',
+         InInterp t v -> InInterp t v' -> interp_compare t v v' ->
+         collapse t v < collapse t v').
+Proof.
+  induction t.
+  - split.
+    + unfold InInterp; simpl. exact (Full_intro nat 0).
+    + intros; simpl; simpl in H1; assumption.
+  - destruct IHt1; destruct IHt2.
+    split.
+    + unfold InInterp; unfold In.
+      simpl.
+      fold interpt.
+      split.
+      * unfold Restrict.
+        intros.
+        unfold In.
+        unfold InInterp in H1.
+        unfold In in H1.
+        apply plus_well_def.
+        assumption.
+      * intros.
+        specialize H0 with v1 v2.
+        unfold InInterp in H0.
+        apply compare_plus_H.
+        exact (H0 H3 H4 H5).
+    + intros.
+      simpl.
+      simpl in H5.
+      specialize H5 with (star_below t1).
+      pose (H3x := in_interp_arrow H3 (star_below t1) H).
+      pose (H4x := in_interp_arrow H4 (star_below t1) H).
+      specialize H2 with (v (star_below t1)) (v' (star_below t1)).
+      exact (H2 H3x H4x (H5 H)).
+Qed.
+
+Lemma below_star_well_def t : InInterp t (star_below t).
+Proof.
+  exact (proj1 (prop_4 t)).
+Qed.
+
+Lemma collapse_spec t: forall v v',
+    InInterp t v -> InInterp t v' -> interp_compare t v v' ->
+    collapse t v < collapse t v'.
+Proof.
+  exact (proj2 (prop_4 t)).
+Qed.
