@@ -186,20 +186,20 @@ Proof.
     exact (IHt2 (v x)).
 Qed.
 
-Fixpoint star_below t: interpt t :=
+Fixpoint star t: interpt t :=
   match t as t return interpt t with
   | Iota => 0
   | Arrow t1 t2 =>
-    fun v => plus t2 (star_below t2) (collapse t1 v) end
+    fun v => plus t2 (star t2) (collapse t1 v) end
 with collapse t: interpt t -> nat :=
   match t as t return interpt t -> nat with
   | Iota => fun n => n
   | Arrow t1 t2 =>
     fun f =>
-      collapse t2 (f (star_below t1)) end.
+      collapse t2 (f (star t1)) end.
 
 Lemma prop_4 t:
-  (InInterp t (star_below t))
+  (InInterp t (star t))
   /\ (forall v v',
          InInterp t v -> InInterp t v' -> interp_compare t v v' ->
          collapse t v < collapse t v').
@@ -229,14 +229,14 @@ Proof.
     + intros.
       simpl.
       simpl in H5.
-      specialize H5 with (star_below t1).
-      pose (H3x := in_interp_arrow H3 (star_below t1) H).
-      pose (H4x := in_interp_arrow H4 (star_below t1) H).
-      specialize H2 with (v (star_below t1)) (v' (star_below t1)).
+      specialize H5 with (star t1).
+      pose (H3x := in_interp_arrow H3 (star t1) H).
+      pose (H4x := in_interp_arrow H4 (star t1) H).
+      specialize H2 with (v (star t1)) (v' (star t1)).
       exact (H2 H3x H4x (H5 H)).
 Qed.
 
-Lemma below_star_well_def t : InInterp t (star_below t).
+Lemma below_star_well_def t : InInterp t (star t).
 Proof.
   exact (proj1 (prop_4 t)).
 Qed.
@@ -246,4 +246,21 @@ Lemma collapse_spec t: forall v v',
     collapse t v < collapse t v'.
 Proof.
   exact (proj2 (prop_4 t)).
+Qed.
+
+(* Prop 6 *)
+Lemma collapse_star t : collapse t (star t) = 0.
+Proof.
+  induction t.
+  - auto.
+  - simpl. rewrite IHt1. rewrite plus_0_neutral. assumption.
+Qed.
+
+Lemma collapse_plus_compat t: forall v k, collapse t (plus t v k) = collapse t v + k.
+Proof.
+  intros.
+  induction t.
+  - auto.
+  - simpl.
+    exact (IHt2 (v (star t1))).
 Qed.
