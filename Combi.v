@@ -264,3 +264,11 @@ Proof.
   - simpl.
     exact (IHt2 (v (star t1))).
 Qed.
+
+Fixpoint le_t t : interpt t -> interpt t -> Prop :=
+  match t as t return interpt t -> interpt t -> Prop with
+  | Iota => le
+  | Arrow t1 t2 =>
+    fun f g =>
+      let compare_t2 := interp_compare t2 in
+      forall x, In (interpt t1) (interp_ens t1) x -> le_t t2 (f x) (g x) end.
