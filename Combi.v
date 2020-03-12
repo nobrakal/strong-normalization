@@ -271,3 +271,20 @@ Fixpoint le_t t : tot t -> tot t -> Prop :=
     fun f g =>
       let compare_t2 := comparet t2 in
       forall x, In (tot t1) (interp t1) x -> le_t t2 (f x) (g x) end.
+
+Require Import Coq.Relations.Relation_Definitions.
+
+Lemma le_t_refl t : reflexive (tot t) (le_t t).
+Proof.
+  unfold reflexive.
+  induction t.
+  - simpl. exact le_refl.
+  - intros.
+    simpl.
+    intros.
+    exact (IHt2 (x x0)).
+Qed.
+
+Lemma le_t_sym t : symmetric (tot t) (le_t t).
+Proof.
+  unfold symmetric.
