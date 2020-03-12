@@ -18,31 +18,28 @@ Fixpoint tot (t:type) : Type :=
   | Iota => nat
   | Arrow x y => (tot x) -> (tot y) end.
 
-Definition Restrict {A B} (f: A -> B) (e1 : Ensemble A) (e2 : Ensemble B):=
-  forall x, In A e1 x -> In B e2 (f x).
+Definition Fun {A B} (a: Ensemble A) (b: Ensemble B) : Ensemble (A -> B) :=
+  fun f => forall x, a x -> b (f x).
 
 Fixpoint comparet t : tot t -> tot t -> Prop :=
-  match t with
+  match t as t return tot t -> tot t -> Prop with
   | Iota => lt
   | Arrow t1 t2 =>
     fun f g =>
-      let compare_t2 := comparet t2 in
-      let interp_t1 := interp t1 in
-      forall x, In (tot t1) interp_t1 x -> compare_t2 (f x) (g x)
+      let it1 := interp t1 in
+      let it2 := interp t2 in
+      ((Fun it1 it2) f /\ (Fun it1 it2) g) /\
+      forall x, it1 x -> comparet t2 (f x) (g x)
   end
 with interp t: Ensemble (tot t) :=
   match t as t return Ensemble (tot t) with
   | Iota => Full_set nat
   | Arrow t1 t2 =>
-    let compare_t1 := comparet t1 in
-    let compare_t2 := comparet t2 in
-    let interp_t1 := interp t1 in
-    let interp_t2 := interp t2 in
     fun f : tot (Arrow t1 t2) =>
-      Restrict f interp_t1 interp_t2 /\
-      (forall v1 v2, In (tot t1) (interp t1) v1 ->
-                     In (tot t1) (interp t1) v2 ->
-                     compare_t1 v1 v2 -> compare_t2 (f v1) (f v2))
+      (Fun (interp t1) (interp t2)) f /\
+      (forall v1 v2, (interp t1) v1 ->
+                     (interp t1) v2 ->
+                     comparet t1 v1 v2 -> comparet t2 (f v1) (f v2))
   end.
 
 (* Prop 1 *)
@@ -52,8 +49,10 @@ Proof.
   induction t.
   - exact lt_trans.
   - simpl; intros.
-    specialize H with x0.
-    specialize H0 with x0.
+    decompose [and] H.
+    intuition.
+    specialize H4 with x0.
+    specialize H7 with x0.
     specialize IHt2 with (x x0) (y x0) (z x0).
     intuition.
 Qed.
@@ -68,29 +67,21 @@ Fixpoint plus (t:type) : tot t -> nat -> tot t :=
 Lemma plus_arr t1 t2 : plus (Arrow t1 t2) = fun f k x => plus t2 (f x) k.
 Proof. auto. Qed.
 
-Definition InInterp t := In (tot t) (interp t).
-
-Lemma in_interp_arrow t1 t2 v : InInterp (Arrow t1 t2) v ->forall x, InInterp t1 x -> InInterp t2 (v x).
+Lemma in_interp_arrow t1 t2 v : interp (Arrow t1 t2) v ->forall x, interp t1 x -> interp t2 (v x).
 Proof.
   intros.
-  unfold InInterp.
-  unfold In.
-  unfold InInterp in H.
-  unfold In in H.
   simpl in H.
   destruct H as (H,_).
-  unfold Restrict in H.
-  fold tot in H.
+  unfold Fun in H.
   specialize H with x.
   exact (H H0).
 Qed.
 
-
 Require Import Lia.
 
 Lemma prop_2 (t:type) :
-  (forall x, InInterp t x -> forall k, InInterp t (plus t x k))
-  /\ (forall v1 v2, InInterp t v1 -> InInterp t v2 ->
+  (forall x, interp t x -> forall k, interp t (plus t x k))
+  /\ (forall v1 v2, interp t v1 -> interp t v2 ->
     comparet t v1 v2 -> forall k, comparet t (plus t v1 k) (plus t v2 k)).
 Proof.
   induction t.
@@ -105,18 +96,11 @@ Proof.
     + intros.
       rewrite plus_arr.
       fold tot.
-      unfold InInterp.
       simpl.
-      unfold In at 1.
-      unfold InInterp in H3.
-      unfold In in H3.
       simpl in H3.
       destruct H3.
-      unfold Restrict in H3.
-      fold tot in H3.
       split.
-      * unfold Restrict.
-        fold tot.
+      * unfold Fun.
         intros.
         apply (H3 x0) in H5.
         exact (H1 (x x0) H5 k).
@@ -128,23 +112,38 @@ Proof.
         pose (FH := H4 H5 H6 H7).
         exact (H2 H31 H32 FH).
     + intros; simpl; intros.
-      specialize H2 with (v1 x) (v2 x) k.
-      pose (H3x := in_interp_arrow H3 x H6).
-      pose (H4x := in_interp_arrow  H4 x H6).
+      fold tot.
       simpl in H5.
-      specialize H5 with x.
-      pose (H66 := H5 H6).
-      exact (H2 H3x H4x H66).
+      decompose [and] H5.
+      repeat split.
+      * unfold Fun.
+        intros.
+        unfold Fun in H6.
+        specialize H6 with x.
+        apply H6 in H7.
+        exact (H1 (v1 x) H7 k).
+      * unfold Fun.
+        intros.
+        unfold Fun in H8.
+        specialize H8 with x.
+        apply H8 in H7.
+        exact (H1 (v2 x) H7 k).
+      * intros.
+        specialize H2 with (v1 x) (v2 x) k.
+        apply H2.
+        apply in_interp_arrow. intuition. intuition.
+        apply in_interp_arrow. intuition. intuition.
+        intuition.
 Qed.
 
 Lemma plus_well_def (t:type) :
-  (forall x, InInterp t x -> forall k, InInterp t (plus t x k)).
+  (forall x, interp t x -> forall k, interp t (plus t x k)).
 Proof.
   exact (proj1 (prop_2 t)).
 Qed.
 
 Lemma compare_compat_plus (t:type) :
-  (forall v1 v2, InInterp t v1 -> InInterp t v2 ->
+  (forall v1 v2, interp t v1 -> interp t v2 ->
     comparet t v1 v2 -> forall k, comparet t (plus t v1 k) (plus t v2 k)).
 Proof.
   exact (proj2 (prop_2 t)).
@@ -178,13 +177,25 @@ Proof.
     easy.
 Qed.
 
-Lemma compare_plus_H (t:type) : forall v k1 k2, k1 < k2 -> comparet t (plus t v k1) (plus t v k2).
+Lemma compare_plus_H (t:type) : forall v k1 k2, interp t v -> k1 < k2 -> comparet t (plus t v k1) (plus t v k2).
 Proof.
   intros.
   induction t.
   - simpl. lia.
-  - simpl; intros.
-    exact (IHt2 (v x)).
+  - simpl. fold tot.
+    simpl in H.
+    destruct H as (H1,_).
+    unfold Fun in H1.
+    repeat split.
+    * unfold Fun.
+      intros.
+      apply H1 in H.
+      apply plus_well_def; easy.
+    * unfold Fun.
+      intros.
+      apply H1 in H.
+      apply plus_well_def; easy.
+    * intros. exact (IHt2 (v x) (H1 x H)).
 Qed.
 
 Fixpoint star t: tot t :=
@@ -200,31 +211,26 @@ with collapse t: tot t -> nat :=
       collapse t2 (f (star t1)) end.
 
 Lemma prop_4 t:
-  (InInterp t (star t))
+  (interp t (star t))
   /\ (forall v v',
-         InInterp t v -> InInterp t v' -> comparet t v v' ->
+         interp t v -> interp t v' -> comparet t v v' ->
          collapse t v < collapse t v').
 Proof.
   induction t.
   - split.
-    + unfold InInterp; simpl. exact (Full_intro nat 0).
+    + simpl. exact (Full_intro nat 0).
     + intros; simpl; simpl in H1; assumption.
   - destruct IHt1; destruct IHt2.
     split.
-    + unfold InInterp; unfold In.
-      simpl.
+    + simpl.
       fold tot.
       split.
-      * unfold Restrict.
+      * unfold Fun.
         intros.
-        unfold In.
-        unfold InInterp in H1.
-        unfold In in H1.
         apply plus_well_def.
         assumption.
       * intros.
         specialize H0 with v1 v2.
-        unfold InInterp in H0.
         apply compare_plus_H.
         exact (H0 H3 H4 H5).
     + intros.
@@ -273,3 +279,11 @@ Fixpoint le_t t : tot t -> tot t -> Prop :=
     fun f g =>
       let compare_t2 := comparet t2 in
       forall x, In (tot t1) (interp t1) x -> le_t t2 (f x) (g x) end.
+
+Lemma le_t_refl t : forall x, le_t t x x.
+Proof.
+  induction t.
+  - simpl. exact le_refl.
+  - intros.
+    simpl.
+    intros.
