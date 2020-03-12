@@ -12,41 +12,42 @@ Inductive type : Set :=
 
 Require Import Coq.Sets.Ensembles.
 
-Fixpoint interpt (t:type) : Type :=
+(* Type of type *)
+Fixpoint tot (t:type) : Type :=
   match t with
   | Iota => nat
-  | Arrow x y => (interpt x) -> (interpt y) end.
+  | Arrow x y => (tot x) -> (tot y) end.
 
 Definition Restrict {A B} (f: A -> B) (e1 : Ensemble A) (e2 : Ensemble B):=
   forall x, In A e1 x -> In B e2 (f x).
 
-Fixpoint interp_compare t : interpt t -> interpt t -> Prop :=
+Fixpoint comparet t : tot t -> tot t -> Prop :=
   match t with
   | Iota => lt
   | Arrow t1 t2 =>
     fun f g =>
-      let compare_t2 := interp_compare t2 in
-      let interp_t1 := interp_ens t1 in
-      forall x, In (interpt t1) interp_t1 x -> compare_t2 (f x) (g x)
+      let compare_t2 := comparet t2 in
+      let interp_t1 := interp t1 in
+      forall x, In (tot t1) interp_t1 x -> compare_t2 (f x) (g x)
   end
-with interp_ens t: Ensemble (interpt t) :=
-  match t as t return Ensemble (interpt t) with
+with interp t: Ensemble (tot t) :=
+  match t as t return Ensemble (tot t) with
   | Iota => Full_set nat
   | Arrow t1 t2 =>
-    let compare_t1 := interp_compare t1 in
-    let compare_t2 := interp_compare t2 in
-    let interp_t1 := interp_ens t1 in
-    let interp_t2 := interp_ens t2 in
-    fun f : interpt (Arrow t1 t2) =>
+    let compare_t1 := comparet t1 in
+    let compare_t2 := comparet t2 in
+    let interp_t1 := interp t1 in
+    let interp_t2 := interp t2 in
+    fun f : tot (Arrow t1 t2) =>
       Restrict f interp_t1 interp_t2 /\
-      (forall v1 v2, In (interpt t1) (interp_ens t1) v1 ->
-                     In (interpt t1) (interp_ens t1) v2 ->
+      (forall v1 v2, In (tot t1) (interp t1) v1 ->
+                     In (tot t1) (interp t1) v2 ->
                      compare_t1 v1 v2 -> compare_t2 (f v1) (f v2))
   end.
 
 (* Prop 1 *)
-Lemma interp_compare_trans (t:type): forall x y z,
-    interp_compare t x y -> interp_compare t y z -> interp_compare t x z.
+Lemma comparet_trans (t:type): forall x y z,
+    comparet t x y -> comparet t y z -> comparet t x z.
 Proof.
   induction t.
   - exact lt_trans.
@@ -57,8 +58,8 @@ Proof.
     intuition.
 Qed.
 
-Fixpoint plus (t:type) : interpt t -> nat -> interpt t :=
-  match t as t return interpt t -> nat -> interpt t with
+Fixpoint plus (t:type) : tot t -> nat -> tot t :=
+  match t as t return tot t -> nat -> tot t with
   | Iota => fun x k => x + k
   | Arrow t1 t2 =>
     fun f k =>
@@ -67,7 +68,7 @@ Fixpoint plus (t:type) : interpt t -> nat -> interpt t :=
 Lemma plus_arr t1 t2 : plus (Arrow t1 t2) = fun f k x => plus t2 (f x) k.
 Proof. auto. Qed.
 
-Definition InInterp t := In (interpt t) (interp_ens t).
+Definition InInterp t := In (tot t) (interp t).
 
 Lemma in_interp_arrow t1 t2 v : InInterp (Arrow t1 t2) v ->forall x, InInterp t1 x -> InInterp t2 (v x).
 Proof.
@@ -79,7 +80,7 @@ Proof.
   simpl in H.
   destruct H as (H,_).
   unfold Restrict in H.
-  fold interpt in H.
+  fold tot in H.
   specialize H with x.
   exact (H H0).
 Qed.
@@ -90,20 +91,20 @@ Require Import Lia.
 Lemma prop_2 (t:type) :
   (forall x, InInterp t x -> forall k, InInterp t (plus t x k))
   /\ (forall v1 v2, InInterp t v1 -> InInterp t v2 ->
-    interp_compare t v1 v2 -> forall k, interp_compare t (plus t v1 k) (plus t v2 k)).
+    comparet t v1 v2 -> forall k, comparet t (plus t v1 k) (plus t v2 k)).
 Proof.
   induction t.
   - split.
     + intros.
       exact (Full_intro nat (x+k)).
-    + intros; simpl. unfold interp_compare in H1.
+    + intros; simpl. unfold comparet in H1.
       lia.
   - destruct IHt1.
     destruct IHt2.
     split.
     + intros.
       rewrite plus_arr.
-      fold interpt.
+      fold tot.
       unfold InInterp.
       simpl.
       unfold In at 1.
@@ -112,10 +113,10 @@ Proof.
       simpl in H3.
       destruct H3.
       unfold Restrict in H3.
-      fold interpt in H3.
+      fold tot in H3.
       split.
       * unfold Restrict.
-        fold interpt.
+        fold tot.
         intros.
         apply (H3 x0) in H5.
         exact (H1 (x x0) H5 k).
@@ -144,7 +145,7 @@ Qed.
 
 Lemma compare_compat_plus (t:type) :
   (forall v1 v2, InInterp t v1 -> InInterp t v2 ->
-    interp_compare t v1 v2 -> forall k, interp_compare t (plus t v1 k) (plus t v2 k)).
+    comparet t v1 v2 -> forall k, comparet t (plus t v1 k) (plus t v2 k)).
 Proof.
   exact (proj2 (prop_2 t)).
 Qed.
@@ -159,7 +160,7 @@ Proof.
   induction t.
   - auto.
   - simpl.
-    fold interpt.
+    fold tot.
     extensionality x.
     rewrite IHt2.
     easy.
@@ -171,13 +172,13 @@ Proof.
   induction t.
   - simpl. lia.
   - simpl.
-    fold interpt.
+    fold tot.
     extensionality x.
     rewrite IHt2.
     easy.
 Qed.
 
-Lemma compare_plus_H (t:type) : forall v k1 k2, k1 < k2 -> interp_compare t (plus t v k1) (plus t v k2).
+Lemma compare_plus_H (t:type) : forall v k1 k2, k1 < k2 -> comparet t (plus t v k1) (plus t v k2).
 Proof.
   intros.
   induction t.
@@ -186,13 +187,13 @@ Proof.
     exact (IHt2 (v x)).
 Qed.
 
-Fixpoint star t: interpt t :=
-  match t as t return interpt t with
+Fixpoint star t: tot t :=
+  match t as t return tot t with
   | Iota => 0
   | Arrow t1 t2 =>
     fun v => plus t2 (star t2) (collapse t1 v) end
-with collapse t: interpt t -> nat :=
-  match t as t return interpt t -> nat with
+with collapse t: tot t -> nat :=
+  match t as t return tot t -> nat with
   | Iota => fun n => n
   | Arrow t1 t2 =>
     fun f =>
@@ -201,7 +202,7 @@ with collapse t: interpt t -> nat :=
 Lemma prop_4 t:
   (InInterp t (star t))
   /\ (forall v v',
-         InInterp t v -> InInterp t v' -> interp_compare t v v' ->
+         InInterp t v -> InInterp t v' -> comparet t v v' ->
          collapse t v < collapse t v').
 Proof.
   induction t.
@@ -212,7 +213,7 @@ Proof.
     split.
     + unfold InInterp; unfold In.
       simpl.
-      fold interpt.
+      fold tot.
       split.
       * unfold Restrict.
         intros.
@@ -236,13 +237,13 @@ Proof.
       exact (H2 H3x H4x (H5 H)).
 Qed.
 
-Lemma below_star_well_def t : InInterp t (star t).
+Lemma star_well_def t : InInterp t (star t).
 Proof.
   exact (proj1 (prop_4 t)).
 Qed.
 
 Lemma collapse_spec t: forall v v',
-    InInterp t v -> InInterp t v' -> interp_compare t v v' ->
+    InInterp t v -> InInterp t v' -> comparet t v v' ->
     collapse t v < collapse t v'.
 Proof.
   exact (proj2 (prop_4 t)).
@@ -265,10 +266,10 @@ Proof.
     exact (IHt2 (v (star t1))).
 Qed.
 
-Fixpoint le_t t : interpt t -> interpt t -> Prop :=
-  match t as t return interpt t -> interpt t -> Prop with
+Fixpoint le_t t : tot t -> tot t -> Prop :=
+  match t as t return tot t -> tot t -> Prop with
   | Iota => le
   | Arrow t1 t2 =>
     fun f g =>
-      let compare_t2 := interp_compare t2 in
-      forall x, In (interpt t1) (interp_ens t1) x -> le_t t2 (f x) (g x) end.
+      let compare_t2 := comparet t2 in
+      forall x, In (tot t1) (interp t1) x -> le_t t2 (f x) (g x) end.
