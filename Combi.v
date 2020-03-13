@@ -264,27 +264,40 @@ Proof.
     exact (IHt2 (v (star t1))).
 Qed.
 
-Fixpoint le_t t : tot t -> tot t -> Prop :=
-  match t as t return tot t -> tot t -> Prop with
+Fixpoint le_t t : {x : (tot t) | interp t x} -> {x : (tot t) | interp t x} -> Prop :=
+  match t as t return {x : (tot t) | interp t x} -> {x : (tot t) | interp t x} -> Prop with
   | Iota => le
   | Arrow t1 t2 =>
     fun f g =>
-      let compare_t2 := comparet t2 in
+      let it1 := interp t1 in
+      let it2 := interp t2 in
+      (((Fun it1 it2) f /\ (Fun it1 it2) g)) /\
       forall x, In (tot t1) (interp t1) x -> le_t t2 (f x) (g x) end.
 
 Require Import Coq.Relations.Relation_Definitions.
 
-Lemma le_t_refl t : reflexive (tot t) (le_t t).
+Lemma le_t_refl t : reflexive {x : (tot t) | interp t x} (le_t t).
 Proof.
   unfold reflexive.
   induction t.
   - simpl. exact le_refl.
   - intros.
     simpl.
-    intros.
+    split.
+    * split.
+      ** unfold Fun.
+         intros.
+         destruct (IHt1 x0).
+         intros.
     exact (IHt2 (x x0)).
 Qed.
 
-Lemma le_t_sym t : symmetric (tot t) (le_t t).
+Lemma le_t_sym t : antisymmetric (tot t) (le_t t).
 Proof.
-  unfold symmetric.
+  unfold antisymmetric.
+  induction t.
+  - simpl. exact le_antisym.
+  - intros.
+    simpl in H.
+    simpl in H0.
+    extensionality z.
