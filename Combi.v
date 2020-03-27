@@ -7,6 +7,7 @@ Infix "<<" := cmp (at level 70, no associativity).
 
 (* Les quelques constructions d'ordres qui serviront après *)
 Instance ordnat : Ord nat := lt.
+
 Instance ordfun A B `(Ord B) : Ord (A->B) :=
  fun f g => forall a, f a << g a.
 Instance ordsig A (P:A->Prop)`(Ord A) : Ord {a:A|P a} :=
@@ -50,9 +51,34 @@ Proof.
     exact (IHt2 (proj1_sig x a) (proj1_sig y a) (proj1_sig z a) (H a) (H0 a)).
 Qed.
 
-Fixpoint plus t : dom (interp t) -> nat -> dom (interp t) :=
-  match t as t return dom (interp t) -> nat -> dom (interp t)  with
-  | Iota => fun x y => x + y
-  | Arrow t1 t2 =>
-    fun f k => exist _ (fun v => plus t2 (proj1_sig f (proj1_sig v)) k)
+Record ppack t := PPack { op : interp t -> nat -> interp t; plus_incr : forall x y k, x << y -> op x k << op y k}.
+
+Program Fixpoint plus_pack t : ppack t :=
+  match t as t return  ppack t with
+  | Iota => PPack Iota (fun f k => f + k) _
+  | Arrow t1 t2 => PPack
+    (Arrow t1 t2)
+    (fun f k => exist _ (fun v => op t2 (plus_pack t2) (proj1_sig f v) k) _)
+    _
   end.
+
+Obligation 1.
+unfold cmp, ordnat in *. intuition.
+Defined.
+
+Obligation 2.
+fold interp.
+unfold Incr.
+firstorder.
+Defined.
+
+Obligation 3.
+fold interp.
+unfold cmp, ordsig, proj1_sig, cmp, ordfun in *.
+intros.
+destruct (plus_pack t2).
+unfold op.
+firstorder.
+Defined.
+
+Definition plus t : interp t -> nat -> interp t := op t (plus_pack t).
