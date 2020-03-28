@@ -42,13 +42,10 @@ Proof.
   - unfold ordpack in *.
     unfold ord.
     simpl.
-    unfold ordsig.
-    unfold Transitive.
-    unfold cmp.
-    unfold ordfun.
+    unfold ordsig, Transitive, cmp, ordfun.
     intros.
     unfold Transitive in IHt2.
-    exact (IHt2 (proj1_sig x a) (proj1_sig y a) (proj1_sig z a) (H a) (H0 a)).
+    apply IHt2 with (y:=proj1_sig y a); firstorder.
 Qed.
 
 Record ppack t := PPack { op : interp t -> nat -> interp t; plus_incr : forall x y k, x << y -> op x k << op y k}.
@@ -94,7 +91,7 @@ Fixpoint eq {t} : interp t -> interp t -> Prop :=
 
 Infix "==" := eq (at level 60, no associativity).
 
-Lemma plus_0 t : forall (v:interp t), v +_ 0 == v.
+Lemma plust_0 t : forall (v:interp t), v +_ 0 == v.
 Proof.
   intros.
   induction t; simpl; fold interp.
@@ -103,7 +100,7 @@ Proof.
     apply IHt2.
 Qed.
 
-Lemma plus_assoc t : forall (v:interp t) k k', (v +_ k) +_ k' == v +_ (k + k').
+Lemma plust_assoc t : forall (v:interp t) k k', (v +_ k) +_ k' == v +_ (k + k').
 Proof.
   intros.
   induction t; simpl; fold interp.
@@ -112,7 +109,7 @@ Proof.
   - intros. apply IHt2.
 Qed.
 
-Lemma plus_monotonic t : forall (v:interp t) k k', k < k' -> v +_ k << v +_ k'.
+Lemma plust_monotonic t : forall (v:interp t) k k', k < k' -> v +_ k << v +_ k'.
 Proof.
   intros.
   induction t; simpl; fold interp; unfold cmp.
@@ -143,7 +140,7 @@ Obligation 2.
   fold interp.
   unfold Incr.
   intros.
-  apply plus_monotonic.
+  apply plust_monotonic.
   apply sabove_ok1.
   easy.
 Defined.
