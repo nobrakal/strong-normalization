@@ -223,10 +223,19 @@ Qed.
 
 Lemma plust_monotonic_le_t t : forall (v v' : interp t) k k', v <<= v' -> k < k' -> v +_ k <<= v' +_ k' .
 Proof.
-  induction t; unfold cmp, le_t; simpl; fold interp; intros.
-  - unfold plust; simpl. lia.
+  induction t; unfold cmp, le_t, plust; simpl; fold interp; intros.
+  - lia.
   - unfold ordsig,cmp,ordfun in *.
     intros.
     specialize H with a.
     apply IHt2; easy.
+Qed.
+
+Lemma charac_cmp_le_t t : forall x y: interp t, x << y <-> x +_ 1 <<= y.
+Proof.
+  induction t; unfold cmp, le_t, plust; simpl; fold interp; intros.
+  - lia.
+  - unfold ordsig,cmp,ordfun in *.
+    simpl.
+    split; intros H a; specialize H with a; apply IHt2; apply H.
 Qed.
