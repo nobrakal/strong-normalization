@@ -6,8 +6,6 @@ Class Ord (A:Type) := cmp : A -> A -> Prop.
 Infix "<<" := cmp (at level 70, no associativity).
 
 (* Les quelques constructions d'ordres qui serviront après *)
-Instance ordnat : Ord nat := lt.
-
 Instance ordfun A B `(Ord B) : Ord (A->B) :=
  fun f g => forall a, f a << g a.
 Instance ordsig A (P:A->Prop)`(Ord A) : Ord {a:A|P a} :=
@@ -23,7 +21,7 @@ Record pack := Pack { dom :> Type; ord : Ord dom }.
 
 Fixpoint interp (t:typ) : pack :=
  match t with
- | Iota => Pack nat _
+ | Iota => Pack nat lt
  | Arrow t1 t2 =>
    Pack { f : dom (interp t1) -> dom (interp t2) | Incr (ord (interp t1)) (ord (interp t2)) f }
         (ordsig _ _ (ordfun  _ _ (ord (interp t2))))
@@ -60,7 +58,7 @@ Program Fixpoint plust_pack t : ppack t :=
   end.
 
 Obligation 1.
-unfold cmp, ordnat in *. intuition.
+unfold cmp in *. intuition.
 Defined.
 
 Obligation 2.
@@ -113,8 +111,7 @@ Lemma plust_monotonic t : forall (v:interp t) k k', k < k' -> v +_ k << v +_ k'.
 Proof.
   intros.
   induction t; simpl; fold interp; unfold cmp.
-  - unfold ordnat.
-    intuition.
+  - intuition.
   - unfold ordsig, cmp, ordfun.
     intros.
     apply IHt2.
@@ -186,10 +183,10 @@ Proof.
     easy.
 Qed.
 
-Fixpoint le_t {t} : interp t -> interp t -> Prop :=
-  match t as t return interp t -> interp t -> Prop with
-  | Iota => fun x y => x <= y
-  | Arrow t1 t2 => fun f g => forall v, le_t (proj1_sig f v) (proj1_sig g v) end. (* TODO facto *)
+Fixpoint le_t {t} : Ord (interp t) :=
+  match t as t return Ord (interp t) with
+  | Iota => le
+  | Arrow t1 t2 => ordsig _ _ (ordfun _ _ (@le_t t2)) end.
 
 Infix "<<=" := le_t (at level 70, no associativity).
 
@@ -198,21 +195,21 @@ Require Import Lia.
 Lemma trans_cmp_le t: forall x y z : interp t, x << y -> y <<= z -> x <<= z.
 Proof.
   induction t; unfold cmp, le_t; simpl; fold interp; intros.
-  - unfold ordnat in H. lia.
-  - unfold ordsig in H.
-    specialize H0 with v.
-    apply IHt2 with (y:= proj1_sig y v).
-    easy.
-    easy.
+  - lia.
+  - unfold ordsig,cmp,ordfun in *.
+    intros.
+    apply IHt2 with (y:= proj1_sig y a).
+    firstorder.
+    firstorder.
 Qed.
 
 Lemma trans_le_cmp t: forall x y z : interp t, x <<= y -> y << z -> x <<= z.
 Proof.
   induction t; unfold cmp, le_t; simpl; fold interp; intros.
-  - unfold ordnat in H0. lia.
-  - unfold ordsig in H0.
-    specialize H with v.
-    apply IHt2 with (y:= proj1_sig y v).
-    easy.
-    easy.
+  - lia.
+  - unfold ordsig,cmp,ordfun in *.
+    intros.
+    apply IHt2 with (y:= proj1_sig y a).
+    firstorder.
+    firstorder.
 Qed.
