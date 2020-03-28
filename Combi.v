@@ -185,3 +185,34 @@ Proof.
     rewrite IHt2.
     easy.
 Qed.
+
+Fixpoint le_t {t} : interp t -> interp t -> Prop :=
+  match t as t return interp t -> interp t -> Prop with
+  | Iota => fun x y => x <= y
+  | Arrow t1 t2 => fun f g => forall v, le_t (proj1_sig f v) (proj1_sig g v) end. (* TODO facto *)
+
+Infix "<<=" := le_t (at level 70, no associativity).
+
+Require Import Lia.
+
+Lemma trans_cmp_le t: forall x y z : interp t, x << y -> y <<= z -> x <<= z.
+Proof.
+  induction t; unfold cmp, le_t; simpl; fold interp; intros.
+  - unfold ordnat in H. lia.
+  - unfold ordsig in H.
+    specialize H0 with v.
+    apply IHt2 with (y:= proj1_sig y v).
+    easy.
+    easy.
+Qed.
+
+Lemma trans_le_cmp t: forall x y z : interp t, x <<= y -> y << z -> x <<= z.
+Proof.
+  induction t; unfold cmp, le_t; simpl; fold interp; intros.
+  - unfold ordnat in H0. lia.
+  - unfold ordsig in H0.
+    specialize H with v.
+    apply IHt2 with (y:= proj1_sig y v).
+    easy.
+    easy.
+Qed.
