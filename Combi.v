@@ -119,17 +119,17 @@ Qed.
 
 Record spack t :=
   SPack
-    { sbelow : interp t
-      ; sabove : interp t -> nat
-      ; sabove_ok : forall v v', v << v' -> sabove v < sabove v'}.
+    { witness' : interp t
+      ; collapse' : interp t -> nat
+      ; collapse'_ok : forall v v', v << v' -> collapse' v < collapse' v'}.
 
 Program Fixpoint star_pack t : spack t :=
   match t with
   | Iota => SPack Iota 0 (fun n => n) _
   | Arrow t1 t2 => SPack
       (Arrow t1 t2)
-      (exist _ (fun v => sbelow t2 (star_pack t2) +_ sabove t1 (star_pack t1) v) _)
-      (fun f => sabove t2 (star_pack t2) ((proj1_sig f (sbelow t1 (star_pack t1)))))
+      (exist _ (fun v => witness' t2 (star_pack t2) +_ collapse' t1 (star_pack t1) v) _)
+      (fun f => collapse' t2 (star_pack t2) ((proj1_sig f (witness' t1 (star_pack t1)))))
       _
   end.
 
@@ -138,46 +138,46 @@ Obligation 2.
   unfold Incr.
   intros.
   apply plust_monotonic.
-  apply sabove_ok1.
+  apply collapse'_ok1.
   easy.
 Defined.
 
-Definition star_below t := sbelow t (star_pack t).
-Definition star_above t := sabove t (star_pack t).
+Definition witness t := witness' t (star_pack t).
+Definition collapse {t} := collapse' t (star_pack t).
 
 Require Import Coq.Classes.Morphisms.
 
-Instance star_above_proper : forall t, Proper (@eqt t ==> eq) (star_above t).
+Instance collapse_proper : forall t, Proper (@eqt t ==> eq) (@collapse t).
 Proof.
   intros.
   induction t.
   - easy.
   - simpl_relation.
-    unfold star_above.
+    unfold collapse.
     simpl.
     unfold eqt in H.
-    specialize H with (star_below t1).
+    specialize H with (witness t1).
     apply IHt2 in H.
     easy.
 Qed.
 
-Lemma star_above_below t : star_above t (star_below t) = 0.
+Lemma collapse_witness t : collapse (witness t) = 0.
 Proof.
   induction t.
   - easy.
-  - unfold star_above, star_below in *.
+  - unfold collapse, witness in *.
     simpl.
     rewrite IHt1.
     rewrite plust_0.
     assumption.
 Qed.
 
-Lemma star_above_linear t: forall v k, star_above t (v +_ k) = star_above t v + k.
+Lemma collapse_linear t: forall (v:interp t) k, collapse (v +_ k) = collapse v + k.
 Proof.
   intros.
   induction t.
   - easy.
-  - unfold star_above, plust in *.
+  - unfold collapse, plust in *.
     simpl.
     rewrite IHt2.
     easy.
@@ -198,9 +198,7 @@ Proof.
   - lia.
   - unfold ordsig,cmp,ordfun in *.
     intros.
-    apply IHt2 with (y:= proj1_sig y a).
-    firstorder.
-    firstorder.
+    apply IHt2 with (y:= proj1_sig y a); firstorder.
 Qed.
 
 Lemma trans_le_cmp t: forall x y z : interp t, x <<= y -> y << z -> x <<= z.
@@ -209,7 +207,5 @@ Proof.
   - lia.
   - unfold ordsig,cmp,ordfun in *.
     intros.
-    apply IHt2 with (y:= proj1_sig y a).
-    firstorder.
-    firstorder.
+    apply IHt2 with (y:= proj1_sig y a); firstorder.
 Qed.
