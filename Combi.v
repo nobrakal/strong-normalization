@@ -209,3 +209,24 @@ Proof.
     intros.
     apply IHt2 with (y:= proj1_sig y a); firstorder.
 Qed.
+
+Lemma collapse_monotonic t: forall x y : interp t, x <<= y -> collapse x <= collapse y.
+Proof.
+  intros.
+  induction t.
+  - easy.
+  - unfold collapse.
+    simpl.
+    apply IHt2.
+    apply H.
+Qed.
+
+Lemma plust_monotonic_le_t t : forall (v v' : interp t) k k', v <<= v' -> k < k' -> v +_ k <<= v' +_ k' .
+Proof.
+  induction t; unfold cmp, le_t; simpl; fold interp; intros.
+  - unfold plust; simpl. lia.
+  - unfold ordsig,cmp,ordfun in *.
+    intros.
+    specialize H with a.
+    apply IHt2; easy.
+Qed.
