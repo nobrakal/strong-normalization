@@ -83,13 +83,13 @@ Definition plust {t} : interp t -> nat -> interp t := op t (plust_pack t).
 Infix "+_" := plust (at level 50, no associativity).
 
 (* Use equality of nat on Iota, and functional extensionality otherwise *)
-Fixpoint eq {t} : interp t -> interp t -> Prop :=
+Fixpoint eqt {t} : interp t -> interp t -> Prop :=
   match t with
   | Iota => fun x y => x = y
-  | Arrow t1 t2 => fun f g => forall x, eq (proj1_sig f x) (proj1_sig g x)
+  | Arrow t1 t2 => fun f g => forall x, eqt (proj1_sig f x) (proj1_sig g x)
   end.
 
-Infix "==" := eq (at level 60, no associativity).
+Infix "==" := eqt (at level 60, no associativity).
 
 Lemma plust_0 t : forall (v:interp t), v +_ 0 == v.
 Proof.
@@ -147,3 +147,41 @@ Defined.
 
 Definition star_below t := sbelow t (star_pack t).
 Definition star_above t := sabove t (star_pack t).
+
+Require Import Coq.Classes.Morphisms.
+
+Instance star_above_proper : forall t, Proper (@eqt t ==> eq) (star_above t).
+Proof.
+  intros.
+  induction t.
+  - easy.
+  - simpl_relation.
+    unfold star_above.
+    simpl.
+    unfold eqt in H.
+    specialize H with (star_below t1).
+    apply IHt2 in H.
+    easy.
+Qed.
+
+Lemma star_above_below t : star_above t (star_below t) = 0.
+Proof.
+  induction t.
+  - easy.
+  - unfold star_above, star_below in *.
+    simpl.
+    rewrite IHt1.
+    rewrite plust_0.
+    assumption.
+Qed.
+
+Lemma star_above_linear t: forall v k, star_above t (v +_ k) = star_above t v + k.
+Proof.
+  intros.
+  induction t.
+  - easy.
+  - unfold star_above, plust in *.
+    simpl.
+    rewrite IHt2.
+    easy.
+Qed.
