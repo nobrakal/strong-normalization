@@ -122,3 +122,31 @@ Proof.
     intros.
     apply IHt2.
 Qed.
+
+Record spack t :=
+  SPack
+    { star_below' : interp t
+      ; star_above' : interp t -> nat
+      ; star_above_ok' : forall v v', v << v' -> star_above' v < star_above' v'}.
+
+Program Fixpoint star_pack t : spack t :=
+  match t with
+  | Iota => SPack Iota 0 (fun n => n) _
+  | Arrow t1 t2 => SPack
+      (Arrow t1 t2)
+      (exist _ (fun v => star_below' t2 (star_pack t2) +_ star_above' t1 (star_pack t1) v) _)
+      (fun f => star_above' t2 (star_pack t2) ((proj1_sig f (star_below' t1 (star_pack t1)))))
+      _
+  end.
+
+Obligation 2.
+  fold interp.
+  unfold Incr.
+  intros.
+  apply plus_monotonic.
+  apply star_above_ok'1.
+  easy.
+Defined.
+
+Definition star_below t := star_below' t (star_pack t).
+Definition star_above t := star_above' t (star_pack t).
