@@ -1,3 +1,9 @@
+Require Import Coq.Structures.Equalities.
+Require Import Coq.Classes.RelationClasses.
+Require Import Coq.Classes.Morphisms.
+Require Import Coq.Arith.Arith.
+Require Import Lia.
+
 Inductive typ :=
 | Iota
 | Arrow (t1:typ) (t2:typ).
@@ -5,19 +11,17 @@ Inductive typ :=
 Class Ord (A:Type) := cmp : A -> A -> Prop.
 Infix "<<" := cmp (at level 70, no associativity).
 
-(* Les quelques constructions d'ordres qui serviront après *)
+(* Some order instances *)
 Instance ordfun A B `(Ord B) : Ord (A->B) :=
  fun f g => forall a, f a << g a.
-Instance ordsig A (P:A->Prop)`(Ord A) : Ord {a:A|P a} :=
+Instance ordsig A (P:A->Prop) `(Ord A) : Ord {a:A|P a} :=
  fun a a' => proj1_sig a << proj1_sig a'.
 
 Definition Incr {A}{B}`(Ord A)`(Ord B) (f:A->B) :=
  forall a a', a << a' -> f a << f a'.
 
+(* A pack to hold both definitions *)
 Record pack := Pack { dom :> Type; ord : Ord dom }.
-
-(* NB: La projection dom peut être implicite (cf le :> ci-dessus)
-   donc un pack peut être utilisé à la place d'un type Coq *)
 
 Fixpoint interp (t:typ) : pack :=
  match t with
@@ -27,18 +31,13 @@ Fixpoint interp (t:typ) : pack :=
         (ordsig _ _ (ordfun  _ _ (ord (interp t2))))
  end.
 
-(* Evidemment, le type dans un pack est ordonné *)
 Instance ordpack (p:pack) : Ord p := p.(ord).
-
-Require Import Coq.Arith.Arith.
-Require Import Coq.Classes.RelationClasses.
 
 Instance odrtrans t : Transitive (ordpack (interp t)).
 Proof.
   induction t.
   - intuition.
-  - unfold ordpack in *.
-    unfold ord.
+  - unfold ordpack, ord in *.
     simpl.
     unfold ordsig, Transitive, cmp, ordfun.
     intros.
@@ -46,7 +45,8 @@ Proof.
     apply IHt2 with (y:=proj1_sig y a); firstorder.
 Qed.
 
-Record ppack t := PPack { op : interp t -> nat -> interp t; plus_incr : forall x y k, x << y -> op x k << op y k}.
+Record ppack t :=
+  PPack { op : interp t -> nat -> interp t; plus_incr : forall x y k, x << y -> op x k << op y k}.
 
 Program Fixpoint plust_pack t : ppack t :=
   match t as t return  ppack t with
@@ -62,13 +62,11 @@ unfold cmp in *. intuition.
 Defined.
 
 Obligation 2.
-fold interp.
 unfold Incr.
 firstorder.
 Defined.
 
 Obligation 3.
-fold interp.
 unfold cmp, ordsig, proj1_sig, cmp, ordfun in *.
 intros.
 destruct (plust_pack t2).
@@ -104,7 +102,8 @@ Proof.
   induction t; simpl; fold interp.
   - symmetry.
     apply plus_assoc.
-  - intros. apply IHt2.
+  - intros.
+    apply IHt2.
 Qed.
 
 Lemma plust_monotonic t : forall (v:interp t) k k', k < k' -> v +_ k << v +_ k'.
@@ -144,8 +143,6 @@ Defined.
 
 Definition witness t := witness' t (star_pack t).
 Definition collapse {t} := collapse' t (star_pack t).
-
-Require Import Coq.Classes.Morphisms.
 
 Instance collapse_proper : forall t, Proper (@eqt t ==> eq) (@collapse t).
 Proof.
@@ -189,8 +186,6 @@ Fixpoint le_t {t} : Ord (interp t) :=
   | Arrow t1 t2 => ordsig _ _ (ordfun _ _ (@le_t t2)) end.
 
 Infix "<<=" := le_t (at level 70, no associativity).
-
-Require Import Lia.
 
 Lemma trans_cmp_le t: forall x y z : interp t, x << y -> y <<= z -> x <<= z.
 Proof.
