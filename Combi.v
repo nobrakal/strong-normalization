@@ -37,7 +37,7 @@ Fixpoint interp (t:typ) : pack :=
 Instance ordpack (p:pack) : Ord p := p.(ord).
 
 (* The order of the interpretation is transitive *)
-Instance ordtrans t : Transitive (ordpack (interp t)).
+Instance interp_ord_trans t : Transitive (ordpack (interp t)).
 Proof.
   induction t.
   - intuition.
@@ -150,6 +150,22 @@ Defined.
 
 Definition witness t := witness' t (star_pack t).
 Definition collapse {t} := collapse' t (star_pack t).
+
+(* We need a witness to prove that the order of the interpretation is really an order. *)
+Lemma interp_ord_is_ord t : StrictOrder (ord (interp t)).
+Proof.
+  induction t.
+  - intuition.
+  - split.
+    * destruct IHt2.
+      unfold Irreflexive, complement, Reflexive in *; simpl; unfold ordsig, ordfun, Incr.
+      intros.
+      unfold cmp in H.
+      specialize H with (witness t1).
+      apply StrictOrder_Irreflexive in H.
+      easy.
+    * apply interp_ord_trans.
+Qed.
 
 (* This allows to rewrite collapse with eqt *)
 Instance collapse_proper : forall t, Proper (@eqt t ==> eq) (@collapse t).
