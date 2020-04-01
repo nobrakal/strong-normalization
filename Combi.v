@@ -4,36 +4,40 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Arith.Arith.
 Require Import Lia.
 
-Inductive typ :=
-| Iota
-| Arrow (t1:typ) (t2:typ).
-
 Class Ord (A:Type) := cmp : A -> A -> Prop.
 Infix "<<" := cmp (at level 70, no associativity).
 
 (* Some order instances *)
+(* Comparing functions by their graph *)
 Instance ordfun A B `(Ord B) : Ord (A->B) :=
- fun f g => forall a, f a << g a.
+  fun f g => forall a, f a << g a.
+(* The order on a sig is the order on the object *)
 Instance ordsig A (P:A->Prop) `(Ord A) : Ord {a:A|P a} :=
- fun a a' => proj1_sig a << proj1_sig a'.
+  fun a a' => proj1_sig a << proj1_sig a'.
 
 Definition Incr {A}{B}`(Ord A)`(Ord B) (f:A->B) :=
- forall a a', a << a' -> f a << f a'.
+  forall a a', a << a' -> f a << f a'.
 
-(* A pack to hold both definitions *)
+Inductive typ :=
+| Iota
+| Arrow (t1:typ) (t2:typ).
+
+(* A record to hold both definitions, needed due to mutual recursion of the interpretation *)
 Record pack := Pack { dom :> Type; ord : Ord dom }.
 
+(* The interpretation of a type *)
 Fixpoint interp (t:typ) : pack :=
- match t with
- | Iota => Pack nat lt
- | Arrow t1 t2 =>
-   Pack { f : dom (interp t1) -> dom (interp t2) | Incr (ord (interp t1)) (ord (interp t2)) f }
-        (ordsig _ _ (ordfun  _ _ (ord (interp t2))))
- end.
+  match t with
+  | Iota => Pack nat lt
+  | Arrow t1 t2 =>
+    Pack { f : dom (interp t1) -> dom (interp t2) | Incr (ord (interp t1)) (ord (interp t2)) f }
+         (ordsig _ _ (ordfun  _ _ (ord (interp t2))))
+  end.
 
 Instance ordpack (p:pack) : Ord p := p.(ord).
 
-Instance odrtrans t : Transitive (ordpack (interp t)).
+(* The order of the interpretation is transitive *)
+Instance ordtrans t : Transitive (ordpack (interp t)).
 Proof.
   induction t.
   - intuition.
@@ -45,15 +49,17 @@ Proof.
     apply IHt2 with (y:=proj1_sig y a); firstorder.
 Qed.
 
+(* A record to hold both definitions, needed to define plus on type *)
 Record ppack t :=
   PPack { op : interp t -> nat -> interp t; plus_incr : forall x y k, x << y -> op x k << op y k}.
 
 Program Fixpoint plust_pack t : ppack t :=
   match t as t return  ppack t with
   | Iota => PPack Iota (fun f k => f + k) _
-  | Arrow t1 t2 => PPack
-    (Arrow t1 t2)
-    (fun f k => exist _ (fun v => op t2 (plust_pack t2) (proj1_sig f v) k) _)
+  | Arrow t1 t2 =>
+    PPack
+      (Arrow t1 t2)
+      (fun f k => exist _ (fun v => op t2 (plust_pack t2) (proj1_sig f v) k) _)
     _
   end.
 
@@ -116,6 +122,7 @@ Proof.
     apply IHt2.
 Qed.
 
+(* A record to well define collapse and define. *)
 Record spack t :=
   SPack
     { witness' : interp t
@@ -144,6 +151,7 @@ Defined.
 Definition witness t := witness' t (star_pack t).
 Definition collapse {t} := collapse' t (star_pack t).
 
+(* This allows to rewrite collapse with eqt *)
 Instance collapse_proper : forall t, Proper (@eqt t ==> eq) (@collapse t).
 Proof.
   intros.
