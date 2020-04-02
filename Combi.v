@@ -84,7 +84,7 @@ Definition plust {t} : interp t -> nat -> interp t := op t (plust_pack t).
 
 Infix "+_" := plust (at level 50, no associativity).
 
-(* Use equality of nat on Iota, and functional extensionality otherwise *)
+(* Use equality of nat on Iota, and equality of images otherwise *)
 Fixpoint eqt {t} : interp t -> interp t -> Prop :=
   match t with
   | Iota => fun x y => x = y
@@ -92,6 +92,24 @@ Fixpoint eqt {t} : interp t -> interp t -> Prop :=
   end.
 
 Infix "==" := eqt (at level 60, no associativity).
+
+Instance eqtequiv t : Equivalence (@eqt t).
+Proof.
+  induction t.
+  - split; simpl; intuition.
+    unfold Transitive.
+    intros.
+    rewrite H0 in H. easy.
+  - destruct IHt2; split; simpl; fold interp.
+    * firstorder.
+    * unfold Symmetric in *.
+      intros.
+      apply Equivalence_Symmetric.
+      easy.
+    * unfold Transitive in *.
+      intros.
+      apply Equivalence_Transitive with (y := proj1_sig y x0); easy.
+Qed.
 
 Lemma plust_0 t : forall (v:interp t), v +_ 0 == v.
 Proof.
@@ -152,7 +170,7 @@ Definition witness t := witness' t (star_pack t).
 Definition collapse {t} := collapse' t (star_pack t).
 
 (* We need a witness to prove that the order of the interpretation is really an order. *)
-Lemma interp_ord_is_ord t : StrictOrder (ord (interp t)).
+Instance interp_ord_strictord t : StrictOrder (ord (interp t)).
 Proof.
   induction t.
   - intuition.
@@ -210,6 +228,33 @@ Fixpoint le_t {t} : Ord (interp t) :=
   | Arrow t1 t2 => ordsig _ _ (ordfun _ _ (@le_t t2)) end.
 
 Infix "<<=" := le_t (at level 70, no associativity).
+
+Instance le_t_preorder t : PreOrder (@le_t t).
+Proof.
+  induction t.
+  - intuition.
+  - split.
+    * easy.
+    * unfold Transitive.
+      unfold le_t, ordsig, ordfun, cmp; fold (@le_t t2).
+      intros x y z Hxy Hyz a.
+      destruct IHt2.
+      unfold Transitive in PreOrder_Transitive.
+      apply PreOrder_Transitive with (y := proj1_sig y a).
+      exact (Hxy a).
+      exact (Hyz a).
+Qed.
+
+Instance le_t_antisym t : Antisymmetric (interp t) eqt (@le_t t).
+Proof.
+  unfold Antisymmetric.
+  induction t; simpl; fold interp.
+  - intuition.
+  - intros.
+    apply IHt2.
+    apply H.
+    apply H0.
+Qed.
 
 Lemma trans_cmp_le t: forall x y z : interp t, x << y -> y <<= z -> x <<= z.
 Proof.
